@@ -3,8 +3,9 @@ chcp 65001 >nul
 
 echo 正在启动Grounding DINO UI...
 
-:: 设置项目根目录
-set "PROJECT_ROOT=d:\Projects\Grounding-Dino-Training"
+:: 设置项目根目录（脚本所在目录）
+set "SCRIPT_PATH=%~dp0"
+set "PROJECT_ROOT=%SCRIPT_PATH%"
 
 :: 切换到项目根目录
 cd /d "%PROJECT_ROOT%" || (
@@ -13,9 +14,11 @@ pause
 exit /b 1
 )
 
+echo 当前工作目录: %PROJECT_ROOT%
+
 :: 激活虚拟环境
 echo 正在激活虚拟环境...
-call "venv_groundingdino\Scripts\activate.bat" || (
+call "%PROJECT_ROOT%venv_groundingdino\Scripts\activate.bat" || (
 echo 错误：无法激活虚拟环境
 pause
 exit /b 1

@@ -1,4 +1,4 @@
-﻿# 统一启动Grounding DINO UI脚本
+# 统一启动Grounding DINO UI脚本
 # 支持CPU和GPU模式选择
 # 使用PowerShell以获得更好的兼容性和UTF-8支持
 
@@ -14,13 +14,15 @@ $PSDefaultParameterValues['Write-Output:Encoding'] = 'utf8'
 
 Write-Host "正在启动Grounding DINO UI..." -ForegroundColor Green
 
-# 切换到项目根目录
-$projectRoot = "d:\Projects\Grounding-Dino-Training"
+# 切换到项目根目录（脚本所在目录）
+$scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Definition
+$projectRoot = $scriptPath
 Set-Location -Path $projectRoot
+Write-Host "当前工作目录: $projectRoot" -ForegroundColor Green
 
 # 检查并激活虚拟环境
 Write-Host "正在激活虚拟环境..." -ForegroundColor Green
-$venvPath = "venv_groundingdino\Scripts\Activate.ps1"
+$venvPath = Join-Path $projectRoot "venv_groundingdino\Scripts\Activate.ps1"
 if (Test-Path -Path $venvPath) {
     & $venvPath
 } else {
