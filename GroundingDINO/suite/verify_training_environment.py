@@ -91,12 +91,12 @@ def check_model_files():
     print("\n=== 检查模型文件 ===")
     
     config_files = [
-        "groundingdino/config/GroundingDINO_SwinT_OGC.py",
-        "groundingdino/config/GroundingDINO_SwinB_cfg.py"
+        "GroundingDINO/groundingdino/config/GroundingDINO_SwinT_OGC.py",
+        "GroundingDINO/groundingdino/config/GroundingDINO_SwinB_cfg.py"
     ]
     
     weight_files = [
-        "weights/groundingdino_swint_ogc.pth"
+        "GroundingDINO/weights/groundingdino_swint_ogc.pth"
     ]
     
     results = {
@@ -104,14 +104,17 @@ def check_model_files():
         "weight_files": {}
     }
     
+    # 获取项目根目录（suite的父目录）
+    project_root = os.path.abspath(os.path.join(os.getcwd(), ".."))
+    
     for config_file in config_files:
-        full_path = os.path.join(os.getcwd(), config_file)
+        full_path = os.path.join(project_root, config_file)
         exists = os.path.exists(full_path)
         results["config_files"][config_file] = exists
         print(f"{'✓' if exists else '✗'} 配置文件: {config_file} {'(存在)' if exists else '(不存在)'}")
     
     for weight_file in weight_files:
-        full_path = os.path.join(os.getcwd(), weight_file)
+        full_path = os.path.join(project_root, weight_file)
         exists = os.path.exists(full_path)
         results["weight_files"][weight_file] = exists
         print(f"{'✓' if exists else '✗'} 权重文件: {weight_file} {'(存在)' if exists else '(不存在)'}")
@@ -127,13 +130,16 @@ def check_model_loading():
     print("\n=== 检查模型加载功能 ===")
     
     try:
+        # 获取项目根目录（suite的父目录）
+        project_root = os.path.abspath(os.path.join(os.getcwd(), ".."))
+        
         # 确保可以导入groundingdino模块
-        sys.path.append(os.getcwd())
+        sys.path.append(project_root)
         from groundingdino.models.GroundingDINO.groundingdino import GroundingDINO
         from groundingdino.util.slconfig import SLConfig
         
         # 检查配置文件是否存在
-        config_path = "groundingdino/config/GroundingDINO_SwinT_OGC.py"
+        config_path = os.path.join(project_root, "GroundingDINO", "groundingdino", "config", "GroundingDINO_SwinT_OGC.py")
         if not os.path.exists(config_path):
             print(f"✗ 配置文件不存在: {config_path}")
             return {"success": False, "error": "配置文件不存在"}

@@ -26,9 +26,9 @@ def parse_args():
         argparse.Namespace: 包含所有命令行参数的命名空间
     """
     parser = argparse.ArgumentParser(description="Grounding DINO 单GPU训练脚本")
-    parser.add_argument("--config", type=str, default="groundingdino/config/GroundingDINO_SwinT_OGC.py", help="模型配置文件路径")
-    parser.add_argument("--config-file", type=str, default="groundingdino/config/GroundingDINO_SwinT_OGC.py", help="模型配置文件路径（别名）")
-    parser.add_argument("--checkpoint", type=str, default="weights/groundingdino_swint_ogc.pth", help="预训练权重路径")
+    parser.add_argument("--config", type=str, default="../GroundingDINO/groundingdino/config/GroundingDINO_SwinT_OGC.py", help="模型配置文件路径")
+    parser.add_argument("--config-file", type=str, default="../GroundingDINO/groundingdino/config/GroundingDINO_SwinT_OGC.py", help="模型配置文件路径（别名）")
+    parser.add_argument("--checkpoint", type=str, default="../GroundingDINO/weights/groundingdino_swint_ogc.pth", help="预训练权重路径")
     parser.add_argument("--data-dir", type=str, default="demo/coco_dataset", help="数据集根目录")
     parser.add_argument("--train_dataset", type=str, default=None, help="训练数据集路径")
     parser.add_argument("--train_images", type=str, default=None, help="训练图像文件夹路径")
@@ -55,13 +55,13 @@ def parse_args():
     if args.batch_size is not None:
         args.batch_size = args.batch_size
     
-    # 从data-dir构建路径
+    # 从数据集文件夹构建路径
     if args.train_dataset is None:
-        args.train_dataset = os.path.join(args.data_dir, "data.json")
+        args.train_dataset = os.path.join(args.data_dir, "labels.json")
     if args.train_images is None:
         args.train_images = os.path.join(args.data_dir, "data")
     if args.val_dataset is None:
-        args.val_dataset = os.path.join(args.data_dir, "data.json")
+        args.val_dataset = os.path.join(args.data_dir, "labels.json")
     if args.val_images is None:
         args.val_images = os.path.join(args.data_dir, "data")
     

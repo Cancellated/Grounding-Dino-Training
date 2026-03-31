@@ -21,6 +21,12 @@ GroundingDINO/groundingdino/_C.*.pyd
 # 项目特定 - 虚拟环境
 venv_groundingdino/
 
+# 项目特定 - 自定义数据集
+custom_coco_dataset/
+
+# 项目特定 - 自定义标注图像
+custom_annotated_images/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

@@ -36,6 +36,20 @@ def load_model(model_config_path: str, model_checkpoint_path: str, device: str =
     if force_cpu:
         device = "cpu"
     
+    # 检查CUDA是否可用，如果可用则使用特定的CUDA设备
+    if device == "cuda" and torch.cuda.is_available():
+        try:
+            # 获取当前GPU设备
+            current_device = torch.cuda.current_device()
+            # 设置CUDA设备
+            torch.cuda.set_device(current_device)
+            print(f"使用CUDA设备: {current_device}, 设备名称: {torch.cuda.get_device_name(current_device)}")
+        except Exception as e:
+            print(f"CUDA设备设置失败: {e}, 尝试使用CPU")
+            device = "cpu"
+    else:
+        print(f"CUDA不可用，使用设备: {device}")
+    
     args = SLConfig.fromfile(model_config_path)
     args.device = device
     model = build_model(args)
@@ -79,38 +93,67 @@ def predict(
     if force_cpu:
         device = "cpu"
     
-    # 避免再次调用to(device)，因为这可能会触发CUDA初始化
-    # 直接确保image在正确的设备上
-    image = image.to(device)
+    try:
+        # 确保image在正确的设备上
+        image = image.to(device)
 
-    with torch.no_grad():
-        outputs = model(image[None], captions=[caption])
+        with torch.no_grad():
+            outputs = model(image[None], captions=[caption])
 
-    prediction_logits = outputs["pred_logits"].cpu().sigmoid()[0]  # prediction_logits.shape = (nq, 256)
-    prediction_boxes = outputs["pred_boxes"].cpu()[0]  # prediction_boxes.shape = (nq, 4)
+        # 直接在CPU上处理输出，避免GPU内存问题
+        prediction_logits = outputs["pred_logits"].cpu().sigmoid()[0]  # prediction_logits.shape = (nq, 256)
+        prediction_boxes = outputs["pred_boxes"].cpu()[0]  # prediction_boxes.shape = (nq, 4)
 
-    mask = prediction_logits.max(dim=1)[0] > box_threshold
-    logits = prediction_logits[mask]  # 保持logits在GPU上
-    boxes = prediction_boxes[mask]  # boxes.shape = (n, 4)
+        mask = prediction_logits.max(dim=1)[0] > box_threshold
+        logits = prediction_logits[mask]  # logits已经在CPU上
+        boxes = prediction_boxes[mask]  # boxes.shape = (n, 4), 已经在CPU上
 
-    tokenizer = model.tokenizer
-    tokenized = tokenizer(caption)
-    
-    # 使用to_device函数统一管理设备移动
-    device = prediction_logits.device
-    if isinstance(tokenized['input_ids'], list):
-        from groundingdino.util.utils import to_device
-        tokenized = {k: torch.tensor(v, device=device) for k, v in tokenized.items()}
-        tokenized = to_device(tokenized, device)
-    
+        tokenizer = model.tokenizer
+        tokenized = tokenizer(caption)
+        
+        # 确保tokenized在CPU上处理
+        if isinstance(tokenized['input_ids'], list):
+            tokenized = {k: torch.tensor(v, device="cpu") for k, v in tokenized.items()}
+        elif hasattr(tokenized['input_ids'], 'device') and tokenized['input_ids'].device.type == 'cuda':
+            tokenized = {k: v.cpu() for k, v in tokenized.items()}
+    except RuntimeError as e:
+        # 如果出现CUDA相关错误，打印详细信息并尝试使用CPU
+        print(f"CUDA错误: {e}")
+        print("尝试在CPU上运行...")
+        
+        # 确保所有操作都在CPU上进行
+        device = "cpu"
+        image = image.to(device)
+        
+        # 确保模型在CPU上
+        model_cpu = model.to(device)
+        
+        with torch.no_grad():
+            outputs = model_cpu(image[None], captions=[caption])
+
+        prediction_logits = outputs["pred_logits"].sigmoid()[0]  # 已经在CPU上
+        prediction_boxes = outputs["pred_boxes"][0]  # 已经在CPU上
+
+        mask = prediction_logits.max(dim=1)[0] > box_threshold
+        logits = prediction_logits[mask]
+        boxes = prediction_boxes[mask]
+
+        tokenizer = model_cpu.tokenizer
+        tokenized = tokenizer(caption)
+        
+        # 确保tokenized在CPU上
+        if isinstance(tokenized['input_ids'], list):
+            tokenized = {k: torch.tensor(v, device=device) for k, v in tokenized.items()}
+
+    # 处理phrases，确保所有操作都在CPU上进行
     if remove_combined:
         sep_idx = [i for i in range(len(tokenized['input_ids'])) if tokenized['input_ids'][i] in [101, 102, 1012]]
         
         phrases = []
         for logit in logits:
             max_idx = logit.argmax()
-            # 将max_idx移到CPU上，因为bisect只能在CPU上运行
-            max_idx_cpu = max_idx.cpu().item()
+            # max_idx已经在CPU上
+            max_idx_cpu = max_idx.item()
             insert_idx = bisect.bisect_left(sep_idx, max_idx_cpu)
             right_idx = sep_idx[insert_idx]
             left_idx = sep_idx[insert_idx - 1]
