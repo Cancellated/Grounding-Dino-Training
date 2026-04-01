@@ -1,5 +1,6 @@
 import argparse
 import os
+import sys
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -30,21 +31,22 @@ def parse_args():
     parser.add_argument("--config-file", type=str, default="../GroundingDINO/groundingdino/config/GroundingDINO_SwinT_OGC.py", help="模型配置文件路径（别名）")
     parser.add_argument("--checkpoint", type=str, default="../GroundingDINO/weights/groundingdino_swint_ogc.pth", help="预训练权重路径")
     parser.add_argument("--data-dir", type=str, default="demo/coco_dataset", help="数据集根目录")
-    parser.add_argument("--train_dataset", type=str, default=None, help="训练数据集路径")
-    parser.add_argument("--train_images", type=str, default=None, help="训练图像文件夹路径")
-    parser.add_argument("--val_dataset", type=str, default=None, help="验证数据集路径")
-    parser.add_argument("--val_images", type=str, default=None, help="验证图像文件夹路径")
+    parser.add_argument("--train_dataset", "--train-dataset", type=str, default=None, help="训练数据集路径")
+    parser.add_argument("--train_images", "--train-images", type=str, default=None, help="训练图像文件夹路径")
+    parser.add_argument("--val_dataset", "--val-dataset", type=str, default=None, help="验证数据集路径")
+    parser.add_argument("--val_images", "--val-images", type=str, default=None, help="验证图像文件夹路径")
     parser.add_argument("--output_dir", type=str, default="outputs", help="输出目录")
     parser.add_argument("--output-dir", type=str, default=None, help="输出目录（别名）")
     parser.add_argument("--batch_size", type=int, default=1, help="批量大小")
     parser.add_argument("--batch-size", type=int, default=None, help="批量大小（别名）")
     parser.add_argument("--epochs", type=int, default=25, help="训练轮数")
     parser.add_argument("--lr", type=float, default=1e-5, help="学习率")
-    parser.add_argument("--weight_decay", type=float, default=0.01, help="权重衰减")
-    parser.add_argument("--warmup_steps", type=int, default=500, help="学习率预热步数")
-    parser.add_argument("--log_interval", type=int, default=10, help="日志输出间隔")
-    parser.add_argument("--save_interval", type=int, default=1, help="模型保存间隔")
-    parser.add_argument("--max_train_samples", type=int, default=None, help="最大训练样本数量")
+    parser.add_argument("--weight_decay", "--weight-decay", type=float, default=0.01, help="权重衰减")
+    parser.add_argument("--warmup_steps", "--warmup-steps", type=int, default=500, help="学习率预热步数")
+    parser.add_argument("--log_interval", "--log-interval", type=int, default=10, help="日志输出间隔")
+    parser.add_argument("--save_interval", "--save-interval", type=int, default=1, help="模型保存间隔")
+    parser.add_argument("--max_train_samples", "--max-train-samples", type=int, default=None, help="最大训练样本数量")
+    parser.add_argument("--max_val_samples", "--max-val-samples", type=int, default=None, help="最大验证样本数量")
     args = parser.parse_args()
     
     # 处理参数别名
@@ -68,13 +70,14 @@ def parse_args():
     return args
 
 
-def build_model(config_path, checkpoint_path, device):
+def build_model(config_path, checkpoint_path, device, load_weights=True):
     """构建模型
     
     Args:
         config_path (str): 配置文件路径
         checkpoint_path (str): 预训练权重路径
         device (torch.device): 设备
+        load_weights (bool): 是否加载权重
     
     Returns:
         nn.Module: 构建好的模型
@@ -82,14 +85,15 @@ def build_model(config_path, checkpoint_path, device):
     # 加载配置
     config = SLConfig.fromfile(config_path)
     
-    # 使用build_groundingdino函数初始化模型
+    # 使用build_groundingdino函数初始化模型（在groundingdino官方代码中定义）
     model = build_groundingdino(config)
     
-    # 加载预训练权重
-    checkpoint = torch.load(checkpoint_path, map_location=device)
-    model.load_state_dict(checkpoint["model"], strict=False)
+    # 加载预训练权重（如果需要）
+    if load_weights:
+        checkpoint = torch.load(checkpoint_path, map_location=device)
+        model.load_state_dict(checkpoint["model"], strict=False)
     
-    # 将模型移动到设备
+    # 将模型移动到设备（CPU或GPU）
     model.to(device)
     
     return model
@@ -109,6 +113,7 @@ def build_dataloader(dataset_path, images_path, batch_size, transform, shuffle=T
     Returns:
         DataLoader: 数据加载器
     """
+    # 加载数据集
     dataset = COCOGroundingDataset(
         ann_file=dataset_path, 
         img_folder=images_path,
@@ -379,46 +384,79 @@ def main():
     # 解析命令行参数
     args = parse_args()
     
-    # 设置日志
-    setup_logger(args.output_dir)
+    # 先配置root logger的基本设置
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.INFO)
     
-    # 配置日志立即输出到控制台
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(levelname)s - %(message)s',
-        handlers=[
-            logging.StreamHandler()
-        ]
-    )
+    # 清除现有的处理器，避免重复输出
+    for handler in root_logger.handlers[:]:
+        root_logger.removeHandler(handler)
+    
+    # 创建格式化器
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    
+    # 添加控制台处理器
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setLevel(logging.INFO)
+    console_handler.setFormatter(formatter)
+    root_logger.addHandler(console_handler)
+    
+    # 添加文件处理器
+    if args.output_dir is not None:
+        log_file = os.path.join(args.output_dir, "log.txt")
+        os.makedirs(os.path.dirname(log_file), exist_ok=True)
+        file_handler = logging.FileHandler(log_file)
+        file_handler.setLevel(logging.INFO)
+        file_handler.setFormatter(formatter)
+        root_logger.addHandler(file_handler)
+    
+    # 调用setup_logger，但不再依赖它来设置日志格式
+    setup_logger(args.output_dir)
     
     # 检查设备
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    logging.info(f"Using device: {device}")
-    
-    # 构建模型
-    logging.info(f"Building model from {args.config}")
-    model = build_model(args.config, args.checkpoint, device)
-    logging.info(f"Model built successfully")
+    logging.info(f"使用设备: {device}")
     
     # 构建数据转换
-    logging.info(f"Building data transforms")
+    logging.info(f"构建数据转换")
     train_transform = get_transform("train")
     val_transform = get_transform("val")
     
     # 构建数据加载器
-    logging.info(f"Building dataloaders")
-    logging.info(f"Train dataset: {args.train_dataset}")
-    logging.info(f"Train images: {args.train_images}")
+    logging.info(f"构建数据加载器")
+    logging.info(f"训练数据集路径: {args.train_dataset}")
+    logging.info(f"训练图像路径: {args.train_images}")
     if args.max_train_samples is not None:
-        logging.info(f"Max train samples: {args.max_train_samples}")
+        logging.info(f"最大训练样本数: {args.max_train_samples}")
     train_dataloader = build_dataloader(args.train_dataset, args.train_images, args.batch_size, train_transform, shuffle=True, max_samples=args.max_train_samples)
-    logging.info(f"Train dataloader built: {len(train_dataloader)} batches")
+    logging.info(f"训练数据加载器构建完成: {len(train_dataloader)} 批")
     
-    val_dataloader = build_dataloader(args.val_dataset, args.val_images, args.batch_size, val_transform, shuffle=False)
-    logging.info(f"Val dataloader built: {len(val_dataloader)} batches")
+    if args.max_val_samples is not None:
+        logging.info(f"最大验证样本数: {args.max_val_samples}")
+    val_dataloader = build_dataloader(args.val_dataset, args.val_images, args.batch_size, val_transform, shuffle=False, max_samples=args.max_val_samples)
+    logging.info(f"验证数据加载器构建完成: {len(val_dataloader)} 批")
+    
+    # 检查是否从检查点恢复训练
+    start_epoch = 1
+    checkpoint_path = args.checkpoint
+    is_training_checkpoint = False
+    checkpoint = None
+    
+    # 检查是否是训练检查点
+    try:
+        checkpoint = torch.load(checkpoint_path, map_location=device)
+        is_training_checkpoint = "optimizer" in checkpoint and "scheduler" in checkpoint and "epoch" in checkpoint
+    except Exception as e:
+        logging.info(f"不是训练检查点: {e}")
+    
+    # 构建模型
+    logging.info(f"从配置文件构建模型: {args.config}")
+    # 如果是训练检查点，不加载权重，之后会从检查点恢复
+    model = build_model(args.config, args.checkpoint, device, load_weights=not is_training_checkpoint)
+    logging.info(f"模型构建完成")
     
     # 构建优化器
-    logging.info(f"Building optimizer with lr={args.lr}, weight_decay={args.weight_decay}")
+    logging.info(f"构建优化器: lr={args.lr}, weight_decay={args.weight_decay}")
     optimizer = optim.AdamW(
         model.parameters(),
         lr=args.lr,
@@ -428,35 +466,57 @@ def main():
     # 构建学习率调度器
     total_steps = args.epochs * len(train_dataloader)
     scheduler = CosineAnnealingLR(optimizer, T_max=total_steps)
-    logging.info(f"Total training steps: {total_steps}")
+    
+    # 从检查点恢复训练
+    if is_training_checkpoint and checkpoint is not None:
+        logging.info(f"找到训练检查点，从轮次 {checkpoint['epoch']} 恢复训练")
+        # 恢复模型权重
+        model.load_state_dict(checkpoint["model"], strict=False)
+        # 恢复优化器状态
+        optimizer.load_state_dict(checkpoint["optimizer"])
+        # 恢复学习率调度器状态
+        scheduler.load_state_dict(checkpoint["scheduler"])
+        # 设置开始轮次
+        start_epoch = checkpoint["epoch"] + 1
+        # 加载检查点的参数
+        checkpoint_args = checkpoint["args"]
+        if hasattr(checkpoint_args, "output_dir"):
+            args.output_dir = checkpoint_args.output_dir
+        logging.info(f"从轮次 {checkpoint['epoch']} 恢复训练，开始轮次 {start_epoch - 1}")
+    elif checkpoint is not None:
+        logging.info("使用预训练权重作为初始模型")
+    else:
+        logging.info("未 提供有效检查点，从头开始训练")
+    
+    logging.info(f"总训练步数: {total_steps}")
     
     # 训练循环
-    logging.info(f"Starting training for {args.epochs} epochs")
-    logging.info(f"Batch size: {args.batch_size}")
-    logging.info(f"Log interval: {args.log_interval}")
+    logging.info(f"从轮次 {start_epoch} 开始训练，共训练 {args.epochs - start_epoch + 1} 轮")
+    logging.info(f"Batch大小: {args.batch_size}")
+    logging.info(f"日间隔时间: {args.log_interval}")
     logging.info("=" * 50)
     
-    for epoch in range(1, args.epochs + 1):
-        logging.info(f"Starting epoch {epoch}/{args.epochs}")
+    for epoch in range(start_epoch, args.epochs + 1):
+        logging.info(f"开始轮次 {epoch}/{args.epochs}")
         
         # 训练一个轮次
         train_loss = train_one_epoch(model, train_dataloader, optimizer, scheduler, epoch, args, device)
         
         # 验证
-        logging.info(f"Starting validation for epoch {epoch}")
+        logging.info(f"验证轮次 {epoch}")
         val_loss = validate(model, val_dataloader, epoch, args, device)
         
         # 保存检查点
         if epoch % args.save_interval == 0:
-            logging.info(f"Saving checkpoint for epoch {epoch}")
+            logging.info(f"保存检查点 {epoch}")
             save_checkpoint(model, optimizer, scheduler, epoch, args, f"checkpoint_epoch_{epoch}.pth")
         
         logging.info("=" * 50)
     
     # 保存最终模型
-    logging.info("Saving final model")
+    logging.info("保存最终模型")
     save_checkpoint(model, optimizer, scheduler, args.epochs, args, "final_model.pth")
-    logging.info("Training completed!")
+    logging.info("训练完成!")
 
 
 if __name__ == "__main__":

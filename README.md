@@ -56,7 +56,7 @@ Grounding-Dino-Training/
 ## 环境要求
 
 ### 最低配置（CPU 模式）
-- 操作系统：Windows 10/11 或 Linux (Ubuntu 18.04+)
+- 操作系统：Windows 10/11 或 Linux (Ubuntu 22.04+)
 - Python：3.9 或更高版本
 - 内存：至少 8GB RAM
 - 磁盘空间：至少 10GB 可用空间

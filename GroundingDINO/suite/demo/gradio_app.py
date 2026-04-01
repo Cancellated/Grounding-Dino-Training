@@ -33,13 +33,13 @@ from huggingface_hub import hf_hub_download
 
 
 
-# Use this command for evaluate the Grounding DINO model
+# 使用Grounding DINO模型，三个参数分别是模型配置文件、模型仓库ID、模型文件名，设备默认使用CUDA
 config_file = "../../groundingdino/config/GroundingDINO_SwinT_OGC.py"
 ckpt_repo_id = "ShilongLiu/GroundingDINO"
 ckpt_filenmae = "groundingdino_swint_ogc.pth"
 
-
-def load_model_hf(model_config_path, repo_id, filename, device='cpu'):
+# 加载模型
+def load_model_hf(model_config_path, repo_id, filename, device='cuda'):
     args = SLConfig.fromfile(model_config_path) 
     model = build_model(args)
     args.device = device
@@ -51,6 +51,7 @@ def load_model_hf(model_config_path, repo_id, filename, device='cpu'):
     _ = model.eval()
     return model    
 
+# 图像预处理：随机调整大小、转换为张量、归一化
 def image_transform_grounding(init_image):
     transform = T.Compose([
         T.RandomResize([800], max_size=1333),
@@ -60,6 +61,7 @@ def image_transform_grounding(init_image):
     image, _ = transform(init_image, None) # 3, h, w
     return init_image, image
 
+# 图像预处理：随机调整大小
 def image_transform_grounding_for_vis(init_image):
     transform = T.Compose([
         T.RandomResize([800], max_size=1333),
@@ -69,6 +71,7 @@ def image_transform_grounding_for_vis(init_image):
 
 model = load_model_hf(config_file, ckpt_repo_id, ckpt_filenmae)
 
+# 运行Grounding DINO模型
 def run_grounding(input_image, grounding_caption, box_threshold, text_threshold):
     init_image = input_image.convert("RGB")
     original_size = init_image.size
@@ -76,7 +79,7 @@ def run_grounding(input_image, grounding_caption, box_threshold, text_threshold)
     _, image_tensor = image_transform_grounding(init_image)
     image_pil: Image = image_transform_grounding_for_vis(init_image)
 
-    # run grounidng
+    # 运行模型
     boxes, logits, phrases = predict(model, image_tensor, grounding_caption, box_threshold, text_threshold, device='cpu')
     annotated_frame = annotate(image_source=np.asarray(image_pil), boxes=boxes, logits=logits, phrases=phrases)
     image_with_box = Image.fromarray(cv2.cvtColor(annotated_frame, cv2.COLOR_BGR2RGB))
@@ -84,6 +87,7 @@ def run_grounding(input_image, grounding_caption, box_threshold, text_threshold)
 
     return image_with_box
 
+# 主函数，负责启动Gradio应用
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser("Grounding DINO demo", add_help=True)
