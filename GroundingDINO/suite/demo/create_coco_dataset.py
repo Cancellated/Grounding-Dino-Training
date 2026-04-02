@@ -5,20 +5,20 @@ import torchvision
 import torch
 import fiftyone as fo
 
-
+##使用GroundingDINO模型创建COCO格式数据集的脚本
 def main(
-        image_directory: str = 'test_grounding_dino',
-        text_prompt: str = 'bus, car',
-        box_threshold: float = 0.15, 
-        text_threshold: float = 0.10,
-        export_dataset: bool = False,
-        export_path: str = 'coco_dataset',
-        view_dataset: bool = False,
-        export_annotated_images: bool = True,
+        image_directory: str = 'test_grounding_dino',  # 输入图像目录
+        text_prompt: str = 'bus, car',  # 文本提示
+        box_threshold: float = 0.15,  # 图像框阈值
+        text_threshold: float = 0.10,  # 文本阈值
+        export_dataset: bool = False,   # 是否导出数据集
+        export_path: str = 'coco_dataset',  # 导出数据集的路径
+        view_dataset: bool = False,  # 是否查看数据集
+        export_annotated_images: bool = True,  # 是否导出标注图像
         annotated_images_path: str = '../../images_with_bounding_boxes',
         weights_path : str = "../../weights/groundingdino_swint_ogc.pth",
         config_path: str = "../../groundingdino/config/GroundingDINO_SwinT_OGC.py",
-        subsample: int = None,
+        subsample: int = None,  # 子采样数量，None表示处理所有样本
     ):
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -67,24 +67,24 @@ def main(
                 )
             )
 
-        # Store detections in a field name of your choice, ensure it's always set
+        # 存储检测结果到样本中
         sample["detections"] = fo.Detections(detections=detections)
         sample.save()
 
-    # loads the voxel fiftyone UI ready for viewing the dataset.
+    # 加载数据集到FiftyOne UI
     if view_dataset:
         session = fo.launch_app(dataset)
         session.wait()
         
-    # exports COCO dataset ready for training
+    # 导出数据集为COCO格式
     if export_dataset:
         dataset.export(
             export_path,
             dataset_type=fo.types.COCODetectionDataset,
-            label_field="detections",  # 明确指定使用detections字段作为检测结果
+            label_field="detections",  # 使用detections字段作为检测结果
         )
         
-    # saves bounding boxes plotted on the input images to disk
+    # 保存标注后的图像到磁盘
     if export_annotated_images:
         dataset.draw_labels(
             annotated_images_path,

@@ -1,7 +1,7 @@
 ﻿# 强制设置脚本编码为UTF-8
 #Requires -Version 5.1
 
-# 更全面的编码设置以解决中文乱码问题
+# 解决中文乱码问题
 $OutputEncoding = [System.Text.UTF8Encoding]::new()
 [System.Console]::OutputEncoding = [System.Text.UTF8Encoding]::new()
 [System.Console]::InputEncoding = [System.Text.UTF8Encoding]::new()

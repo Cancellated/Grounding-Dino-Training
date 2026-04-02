@@ -210,53 +210,59 @@ def create_webui():
         gr.Markdown("# Grounding DINO 图像标注工具")
         gr.Markdown("基于Web的Grounding DINO图像标注工具，支持本地模型加载和设备选择")
         
-        with gr.Tabs():
-            # 模型设置标签页
-            with gr.TabItem("模型设置"):
-                with gr.Row():
-                    # 配置文件路径
-                    config_path = gr.Textbox(
-                        label="配置文件路径",
-                        value=webui.default_config_path,
-                        placeholder="输入配置文件路径"
-                    )
+        # 模型设置按钮
+        model_settings_btn = gr.Button("切换模型设置", variant="secondary")
+        
+        # 使用状态变量跟踪模型设置面板的可见性
+        settings_visible = gr.State(False)
+        
+        # 模型设置部分
+        model_settings = gr.Column(visible=False)  # 默认隐藏
+        with model_settings:
+            with gr.Row():
+                # 配置文件路径
+                config_path = gr.Textbox(
+                    label="配置文件路径",
+                    value=webui.default_config_path,
+                    placeholder="输入配置文件路径"
+                )
+            
+            with gr.Row():
+                # 权重文件路径
+                weights_path = gr.Textbox(
+                    label="权重文件路径",
+                    value=webui.default_weights_path,
+                    placeholder="输入权重文件路径"
+                )
+            
+            with gr.Row():
+                # 设备选择
+                device = gr.Radio(
+                    label="设备选择",
+                    choices=["cpu", "cuda"],
+                    value=webui.default_device
+                )
                 
-                with gr.Row():
-                    # 权重文件路径
-                    weights_path = gr.Textbox(
-                        label="权重文件路径",
-                        value=webui.default_weights_path,
-                        placeholder="输入权重文件路径"
-                    )
-                
-                with gr.Row():
-                    # 设备选择
-                    device = gr.Radio(
-                        label="设备选择",
-                        choices=["cpu", "cuda"],
-                        value=webui.default_device
-                    )
-                    
-                    # 显示CUDA可用性
-                    cuda_status = gr.Textbox(
-                        label="CUDA状态",
-                        value=f"CUDA可用: {webui.cuda_available}",
-                        interactive=False
-                    )
-                
-                with gr.Row():
-                    # 加载模型按钮
-                    load_button = gr.Button("加载模型", variant="primary")
-                
-                # 加载状态
-                load_status = gr.Textbox(
-                    label="加载状态",
-                    value="请加载模型...",
+                # 显示CUDA可用性
+                cuda_status = gr.Textbox(
+                    label="CUDA状态",
+                    value=f"CUDA可用: {webui.cuda_available}",
                     interactive=False
                 )
             
-            # 图像处理标签页
-            with gr.TabItem("图像处理"):
+            with gr.Row():
+                # 加载模型按钮
+                load_button = gr.Button("加载模型", variant="primary")
+            
+            # 加载状态
+            load_status = gr.Textbox(
+                label="加载状态",
+                value="请加载模型...",
+                interactive=False
+            )
+        
+        # 图像处理部分
+        with gr.Column():
                 with gr.Row():
                     # 图像上传
                     input_image = gr.Image(
@@ -306,7 +312,30 @@ def create_webui():
                     interactive=False
                 )
         
-        # 加载模型功能
+        # 模型设置按钮点击事件（切换显示/隐藏）
+        def toggle_model_settings(current_visible):
+            new_visible = not current_visible
+            return [gr.update(visible=new_visible), new_visible]
+        
+        model_settings_btn.click(
+            fn=toggle_model_settings,
+            inputs=[settings_visible],
+            outputs=[model_settings, settings_visible]
+        )
+        
+        # 自动加载模型功能（页面打开时触发）
+        def auto_load_model():
+            # 使用默认配置自动加载模型
+            return webui.load_model(webui.default_config_path, webui.default_weights_path, webui.default_device)
+        
+        # 页面加载时自动执行模型加载
+        demo.load(
+            fn=auto_load_model,
+            inputs=[],
+            outputs=load_status
+        )
+        
+        # 手动加载模型功能
         load_button.click(
             fn=webui.load_model,
             inputs=[config_path, weights_path, device],

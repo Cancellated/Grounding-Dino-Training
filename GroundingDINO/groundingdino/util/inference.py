@@ -60,7 +60,7 @@ def load_model(model_config_path: str, model_checkpoint_path: str, device: str =
     model.to(device)
     return model
 
-
+# 加载图像，返回原始图像和转换后的图像
 def load_image(image_path: str) -> Tuple[np.array, torch.Tensor]:
     transform = T.Compose(
         [
@@ -100,7 +100,6 @@ def predict(
         with torch.no_grad():
             outputs = model(image[None], captions=[caption])
 
-        # 直接在CPU上处理输出，避免GPU内存问题
         prediction_logits = outputs["pred_logits"].cpu().sigmoid()[0]  # prediction_logits.shape = (nq, 256)
         prediction_boxes = outputs["pred_boxes"].cpu()[0]  # prediction_boxes.shape = (nq, 4)
 
