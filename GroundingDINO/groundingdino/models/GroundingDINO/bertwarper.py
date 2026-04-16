@@ -261,10 +261,15 @@ def generate_masks_with_special_tokens_and_transfer_map(tokenized, special_token
             cate_to_token_mask_list[row].append(c2t_maski)
         previous_col = col
 
-    cate_to_token_mask_list = [
-        torch.stack(cate_to_token_mask_listi, dim=0)
-        for cate_to_token_mask_listi in cate_to_token_mask_list
-    ]
+    cate_to_token_mask_list = []
+    for cate_to_token_mask_listi in cate_to_token_mask_list:
+        if len(cate_to_token_mask_listi) > 0:
+            cate_to_token_mask_list.append(torch.stack(cate_to_token_mask_listi, dim=0))
+        else:
+            # 如果没有特殊标记，创建一个空的mask
+            # 形状为 [0, num_token]
+            empty_mask = torch.empty((0, num_token), device=input_ids.device, dtype=torch.bool)
+            cate_to_token_mask_list.append(empty_mask)
 
     # # padding mask
     # padding_mask = tokenized['attention_mask']
