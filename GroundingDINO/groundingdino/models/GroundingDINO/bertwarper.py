@@ -14,6 +14,31 @@ from transformers import BertConfig, BertModel, BertPreTrainedModel
 from transformers.modeling_outputs import BaseModelOutputWithPoolingAndCrossAttentions
 
 
+def get_extended_attention_mask(attention_mask, input_shape, device):
+    """生成扩展的注意力掩码"""
+    if len(attention_mask.shape) == 2:
+        attention_mask = attention_mask.unsqueeze(1).unsqueeze(2)
+    elif len(attention_mask.shape) == 3:
+        attention_mask = attention_mask.unsqueeze(1)
+    
+    dtype = attention_mask.dtype
+    attention_mask = attention_mask.to(device=device, dtype=torch.float32)
+    extended_attention_mask = (1.0 - attention_mask) * torch.finfo(torch.float32).min
+    return extended_attention_mask
+
+
+def invert_attention_mask(attention_mask):
+    """反转注意力掩码"""
+    if attention_mask is None:
+        return None
+    if len(attention_mask.shape) == 2:
+        attention_mask = attention_mask.unsqueeze(1).unsqueeze(2)
+    elif len(attention_mask.shape) == 3:
+        attention_mask = attention_mask.unsqueeze(1)
+    attention_mask = attention_mask.to(dtype=torch.float32)
+    return (1.0 - attention_mask) * torch.finfo(torch.float32).min
+
+
 class BertModelWarper(nn.Module):
     def __init__(self, bert_model):
         super().__init__()
@@ -24,9 +49,19 @@ class BertModelWarper(nn.Module):
         self.encoder = bert_model.encoder
         self.pooler = bert_model.pooler
 
-        self.get_extended_attention_mask = bert_model.get_extended_attention_mask
-        self.invert_attention_mask = bert_model.invert_attention_mask
-        self.get_head_mask = bert_model.get_head_mask
+        self.get_extended_attention_mask = get_extended_attention_mask
+        self.invert_attention_mask = invert_attention_mask
+        
+        # 兼容新旧版本的transformers
+        if hasattr(bert_model, 'get_head_mask'):
+            self.get_head_mask = bert_model.get_head_mask
+        else:
+            # 新版本transformers不再有get_head_mask方法，需要自己实现
+            def get_head_mask(head_mask, num_hidden_layers):
+                if head_mask is not None:
+                    return head_mask
+                return None
+            self.get_head_mask = get_head_mask
 
     def forward(
         self,

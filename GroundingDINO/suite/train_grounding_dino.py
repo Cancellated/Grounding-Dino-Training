@@ -15,6 +15,11 @@ from groundingdino.util.slconfig import SLConfig
 from groundingdino.util.misc import setup_for_distributed, nested_tensor_from_tensor_list
 from groundingdino.util.logger import setup_logger
 from groundingdino.util.box_ops import box_cxcywh_to_xyxy, generalized_box_iou, box_iou
+from groundingdino.util.optimized_ops import (
+    optimized_zeros, optimized_to, optimized_eq, 
+    optimized_bitwise_or, optimized_nonzero, 
+    parallel_process_batch, is_cuda_available
+)
 from groundingdino.models.GroundingDINO.utils import sigmoid_focal_loss
 import time
 import logging
@@ -264,20 +269,19 @@ def train_one_epoch(model, dataloader, optimizer, scheduler, epoch, args, device
     start_time = time.time()
     
     for step, batch in enumerate(dataloader):
-        # 将数据移动到设备
-        images = batch["images"].to(device)
-        targets = [{k: v.to(device) for k, v in t.items()} for t in batch["targets"]]
-        captions = batch["captions"]
+        # 并行处理批次数据
+        batch = parallel_process_batch(batch)
         
-        # 将captions添加到targets中
-        for i, target in enumerate(targets):
-            target["caption"] = captions[i]
+        # 将数据移动到设备
+        images = optimized_to(batch["images"], str(device), non_blocking=True)
+        targets = [{k: optimized_to(v, str(device), non_blocking=True) for k, v in t.items()} for t in batch["targets"]]
+        captions = batch["captions"]
         
         # 将图像转换为NestedTensor
         nested_images = nested_tensor_from_tensor_list(images)
         
         # 前向传播
-        outputs = model(nested_images, targets=targets)
+        outputs = model(nested_images, targets=targets, captions=captions)
         
         # 计算损失
         num_boxes = sum(len(t["boxes"]) for t in targets)
@@ -322,20 +326,19 @@ def validate(model, dataloader, epoch, args, device):
     
     with torch.no_grad():
         for step, batch in enumerate(dataloader):
-            # 将数据移动到设备
-            images = batch["images"].to(device)
-            targets = [{k: v.to(device) for k, v in t.items()} for t in batch["targets"]]
-            captions = batch["captions"]
+            # 并行处理批次数据
+            batch = parallel_process_batch(batch)
             
-            # 将captions添加到targets中
-            for i, target in enumerate(targets):
-                target["caption"] = captions[i]
+            # 将数据移动到设备
+            images = optimized_to(batch["images"], str(device), non_blocking=True)
+            targets = [{k: optimized_to(v, str(device), non_blocking=True) for k, v in t.items()} for t in batch["targets"]]
+            captions = batch["captions"]
             
             # 将图像转换为NestedTensor
             nested_images = nested_tensor_from_tensor_list(images)
             
             # 前向传播
-            outputs = model(nested_images, targets=targets)
+            outputs = model(nested_images, targets=targets, captions=captions)
             
             # 计算损失
             num_boxes = sum(len(t["boxes"]) for t in targets)
@@ -414,7 +417,7 @@ def main():
     setup_logger(args.output_dir)
     
     # 检查设备
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda" if is_cuda_available() else "cpu")
     logging.info(f"使用设备: {device}")
     
     # 构建数据转换

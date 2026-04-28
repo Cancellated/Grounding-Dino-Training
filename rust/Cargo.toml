@@ -8,10 +8,16 @@ name = "groundingdino_rust"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = { version = "0.21", features = ["extension-module"] }
-numpy = "0.21"
+pyo3 = { version = "0.19", features = ["extension-module"] }
+tch = { version = "0.15", features = ["download-libtorch"] }
+ndarray = "0.15"
+rayon = "1.8"  # 并行计算
+lazy_static = "1.4"  # 全局静态变量
 
 [profile.release]
 opt-level = 3
 lto = true
 codegen-units = 1
+
+[tool.maturin]
+bindings = "pyo3"

@@ -1,0 +1,14 @@
+[build-system]
+requires = ["setuptools>=62.4", "setuptools-rust>=1.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "groundingdino-rust"
+version = "0.1.0"
+description = "Grounding DINO Rust extensions"
+
+[tool.setuptools]
+py-modules = ["groundingdino_rust"]
+
+[tool.setuptools.packages.find]
+exclude = ["logs", "rust", "temp", "cache", "Images", "yapf_cache", "custom_weight", "GroundingDINO", "huggingface_cache", "venv_groundingdino", "custom_coco_dataset", "venv_groundingdino_py310"]

@@ -4,6 +4,7 @@ Utilities for bounding box manipulation and GIoU.
 """
 import torch
 from torchvision.ops.boxes import box_area
+from .optimized_ops import optimized_eq, optimized_bitwise_or, optimized_nonzero
 
 
 def box_cxcywh_to_xyxy(x):

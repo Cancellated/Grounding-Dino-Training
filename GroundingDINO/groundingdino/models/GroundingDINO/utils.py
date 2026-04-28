@@ -11,6 +11,7 @@ import math
 import torch
 import torch.nn.functional as F
 from torch import Tensor, nn
+from groundingdino.util.optimized_ops import optimized_zeros, optimized_eq, optimized_bitwise_or
 
 
 def _get_clones(module, N, layer_share=False):

@@ -240,9 +240,16 @@ class GroundingDINO(nn.Module):
                             dictionnaries containing the two above keys for each decoder layer.
         """
         if targets is None:
-            captions = kw["captions"]
+            captions = kw.get("captions", None)
         else:
-            captions = [t["caption"] for t in targets]
+            # 尝试从targets获取caption字段
+            try:
+                captions = [t["caption"] for t in targets]
+            except KeyError:
+                # 如果targets中没有caption，尝试从kw获取
+                captions = kw.get("captions", None)
+                if captions is None:
+                    raise ValueError("captions is required but not found in targets or kw")
 
         # encoder texts
         tokenized = self.tokenizer(captions, padding="longest", return_tensors="pt").to(

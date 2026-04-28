@@ -433,7 +433,7 @@ def main():
         print("-"*80)
         profile_inference(model, dataloader, args)
         
-        print("\n🎉 性能分析完成！")
+        print(f"\n 性能分析完成！可在浏览器中打开 https://ui.perfetto.dev/ 导入 {os.path.join(args.output, 'inference', 'trace.json')}查看结果")
         
     except Exception as e:
         print(f"错误: {e}")
