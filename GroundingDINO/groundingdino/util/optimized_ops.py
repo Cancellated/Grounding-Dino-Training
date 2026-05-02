@@ -27,8 +27,12 @@ def optimized_zeros(shape, dtype=torch.float32):
     """
     if HAS_RUST:
         try:
-            # 转换dtype为字符串
-            dtype_str = str(dtype).split('.')[-1]
+            # 确保dtype被正确转换为字符串
+            if isinstance(dtype, torch.dtype):
+                dtype_str = str(dtype).split('.')[-1]
+            else:
+                dtype_str = str(dtype)
+            
             # 转换shape为列表
             shape_list = list(shape)
             # 调用Rust实现

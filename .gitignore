@@ -172,3 +172,13 @@ tmp/
 vis/
 grounding/config/configs
 grounding/version.py
+
+# Rust 编译产物
+rust/target/
+*.rlib
+*.so
+*.dylib
+*.dll
+
+# libtorch
+**/libtorch/
